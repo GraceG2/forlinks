@@ -1,0 +1,247 @@
+import pandas as pd
+import numpy as np
+import warnings
+import scipy
+import datetime
+
+# Visualisation
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+plt.style.use('fivethirtyeight')
+
+warnings.filterwarnings('ignore')
+# training data
+train = pd.read_csv('train_aWnotuB.csv')
+tr = train[list(train.columns[:-1])]
+tr['DateTime'] = tr['DateTime'].astype('datetime64[ns]')
+
+#group by Junction
+tr1 = tr.groupby('Junction').get_group(1)
+df_prophet1 = dict()        
+df_prophet1['ds'] = tr1['DateTime']
+df_prophet1['y'] = tr1['Vehicles']
+df_prophet1 = pd.DataFrame(df_prophet1)
+
+tr2 = tr.groupby('Junction').get_group(2)
+df_prophet2 = dict()        
+df_prophet2['ds'] = tr2['DateTime']
+df_prophet2['y'] = tr2['Vehicles']
+df_prophet2 = pd.DataFrame(df_prophet2)
+
+tr3 = tr.groupby('Junction').get_group(3)
+df_prophet3 = dict()        
+df_prophet3['ds'] = tr3['DateTime']
+df_prophet3['y'] = tr3['Vehicles']
+df_prophet3 = pd.DataFrame(df_prophet3)
+
+tr4 = tr.groupby('Junction').get_group(4)
+df_prophet4 = dict()        
+df_prophet4['ds'] = tr4['DateTime']
+df_prophet4['y'] = tr4['Vehicles']
+df_prophet4 = pd.DataFrame(df_prophet4)
+
+from fbprophet import Prophet
+sns.set(font_scale=1) 
+
+#define regressors based on Sunday+Monday, 2am-8am, winter holiday Jan+Nov+Dec
+def nfl_sunday(ds):
+    date = pd.to_datetime(ds)
+    if date.weekday() == 1 or date.weekday() == 0 or date.weekday() == 6:
+        return 1
+    else:
+        return 0
+def nfl_night(ds):
+    date = pd.to_datetime(ds)
+    if date.hour < 8  and date.hour > 2:
+        return 1
+    else:
+        return 0
+def nfl_springf(ds):
+    date = pd.to_datetime(ds)
+    if date.month == 1 or date.month == 11 or date.month == 12:
+        return 1
+    else:
+        return 0
+        
+#train model for group1
+df_prophet1['cap'] = 110
+df_prophet1['nfl_sunday'] = df_prophet1['ds'].apply(nfl_sunday)
+df_prophet1['nfl_night'] = df_prophet1['ds'].apply(nfl_night)
+df_prophet1['nfl_springf'] = df_prophet1['ds'].apply(nfl_springf)
+m1 = Prophet(growth='logistic', changepoint_prior_scale=0.05)
+m1.add_seasonality(name = 'hourly',period = 24, fourier_order=5)
+m1.add_regressor('nfl_sunday')
+m1.add_regressor('nfl_night')
+m1.add_regressor('nfl_springf')
+m1.fit(df_prophet1)
+
+#predict traffic of Junction 1 for next 4 months
+test = pd.read_csv('test_BdBKkAj.csv')
+t = test[list(test.columns[:-1])]
+t['DateTime'] = t['DateTime'].astype('datetime64[ns]')
+t1 = t.groupby('Junction').get_group(1)
+df_t1 = dict()        
+df_t1['ds'] = t1['DateTime']
+df_t1 = pd.DataFrame(df_t1)
+df_t1
+df_t1['cap'] = 110
+df_t1['nfl_sunday'] = df_t1['ds'].apply(nfl_sunday)
+df_t1['nfl_night'] = df_t1['ds'].apply(nfl_night)
+df_t1['nfl_springf'] = df_t1['ds'].apply(nfl_springf)
+tforecast1 = m1.predict(df_t1)
+tforecast1[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail()
+m1.plot(tforecast1)
+m1.plot_components(tforecast1)
+tfcst1=dict()
+for  i in range(len(tforecast1)):
+    tfcst1['Vehicles_upper'] =tforecast1['yhat_upper']
+    tfcst1['Vehicles'] =tforecast1['yhat']
+    tfcst1['DateTime'] = tforecast1['ds']
+tdfn1 = pd.DataFrame(tfcst1)
+
+m1.plot_components(tforecast1)
+m1.plot(tforecast1)
+
+#Join prediction of Junction 1 with ID and write to a csv
+test = pd.read_csv('test_BdBKkAj.csv')
+test['DateTime'] = test['DateTime'].astype('datetime64[ns]')
+test1 = test.groupby('Junction').get_group(1)
+test1 = pd.DataFrame(test1)
+df = test1.set_index('DateTime').join(tdfn1.set_index('DateTime'))
+df.to_csv('a.csv')
+
+#train model for group 2
+df_prophet2['cap'] = 40
+df_prophet2['nfl_sunday'] = df_prophet2['ds'].apply(nfl_sunday)
+df_prophet2['nfl_night'] = df_prophet2['ds'].apply(nfl_night)
+df_prophet2['nfl_springf'] = df_prophet2['ds'].apply(nfl_springf)
+m2 = Prophet(growth='logistic',changepoint_prior_scale=0.05)
+m2.add_seasonality(name = 'hourly',period = 24, fourier_order=5)
+m2.add_regressor('nfl_sunday')
+m2.add_regressor('nfl_night')
+m2.add_regressor('nfl_springf')
+m2.fit(df_prophet2)
+
+#predict traffic of Jucntion 2 for next 4 months
+test = pd.read_csv('test_BdBKkAj.csv')
+t = test[list(test.columns[:-1])]
+t['DateTime'] = t['DateTime'].astype('datetime64[ns]')
+t2 = t.groupby('Junction').get_group(2)
+df_t2 = dict()        
+df_t2['ds'] = t2['DateTime']
+df_t2 = pd.DataFrame(df_t2)
+df_t2
+df_t2['cap'] = 40
+df_t2['nfl_sunday'] = df_t2['ds'].apply(nfl_sunday)
+df_t2['nfl_night'] = df_t2['ds'].apply(nfl_night)
+df_t2['nfl_springf'] = df_t2['ds'].apply(nfl_springf)
+tforecast2 = m2.predict(df_t2)
+tforecast2[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail()
+tfcst2=dict()
+for  i in range(len(tforecast2)):
+    tfcst2['Vehicles_upper'] = tforecast2['yhat_upper']
+    tfcst2['Vehicles'] = tforecast2['yhat']
+    tfcst2['DateTime'] = tforecast2['ds']
+tdfn2 = pd.DataFrame(tfcst2)
+
+#Join prediction of Junction 2 with ID and write to a csv
+test = pd.read_csv('test_BdBKkAj.csv')
+test['DateTime'] = test['DateTime'].astype('datetime64[ns]')
+test2 = test.groupby('Junction').get_group(2)
+test2 = pd.DataFrame(test2)
+df = test2.set_index('DateTime').join(tdfn2.set_index('DateTime'))
+df.to_csv('a.csv', mode = 'a')
+m2.plot(tforecast2)
+
+#train model for group 3
+df_prophet3['cap'] = 30
+df_prophet3['nfl_sunday'] = df_prophet3['ds'].apply(nfl_sunday)
+df_prophet3['nfl_night'] = df_prophet3['ds'].apply(nfl_night)
+df_prophet3['nfl_springf'] = df_prophet3['ds'].apply(nfl_springf)
+m3 = Prophet(growth='logistic',changepoint_prior_scale=0.0009)
+m3.add_seasonality(name = 'hourly',period = 24, fourier_order=5)
+m3.add_regressor('nfl_sunday')
+m3.add_regressor('nfl_night')
+m3.add_regressor('nfl_springf')
+m3.fit(df_prophet3)
+
+#predict traffic of Jucntion 3 for next 4 months
+test = pd.read_csv('test_BdBKkAj.csv')
+t = test[list(test.columns[:-1])]
+t['DateTime'] = t['DateTime'].astype('datetime64[ns]')
+t3 = t.groupby('Junction').get_group(3)
+df_t3 = dict()        
+df_t3['ds'] = t3['DateTime']
+df_t3 = pd.DataFrame(df_t3)
+df_t3
+df_t3['cap'] = 30
+df_t3['nfl_sunday'] = df_t3['ds'].apply(nfl_sunday)
+df_t3['nfl_night'] = df_t3['ds'].apply(nfl_night)
+df_t3['nfl_springf'] = df_t3['ds'].apply(nfl_springf)
+tforecast3 = m3.predict(df_t3)
+tforecast3[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail()
+m3.plot(tforecast3)
+m3.plot_components(tforecast3)
+tfcst3=dict()
+for  i in range(len(tforecast3)):
+    tfcst3['Vehicles_upper'] = tforecast3['yhat_upper']
+    tfcst3['Vehicles'] = tforecast3['yhat']
+    tfcst3['DateTime'] = tforecast3['ds']
+tdfn3 = pd.DataFrame(tfcst3)
+
+#Join prediction of Junction 3 with ID and write to a csv
+test = pd.read_csv('test_BdBKkAj.csv')
+test['DateTime'] = test['DateTime'].astype('datetime64[ns]')
+test3 = test.groupby('Junction').get_group(3)
+test3 = pd.DataFrame(test3)
+df = test3.set_index('DateTime').join(tdfn3.set_index('DateTime'))
+df.to_csv('a.csv', mode = 'a')
+
+m3.plot(tforecast3)
+
+#train model for group 4
+df_prophet4['cap'] = 17
+df_prophet4['nfl_sunday'] = df_prophet4['ds'].apply(nfl_sunday)
+df_prophet4['nfl_night'] = df_prophet4['ds'].apply(nfl_night)
+df_prophet4['nfl_springf'] = df_prophet4['ds'].apply(nfl_springf)
+m4 = Prophet(changepoint_prior_scale=0.005)
+m4.add_seasonality(name = 'hourly',period = 24, fourier_order=5)
+m4.add_regressor('nfl_sunday')
+m4.add_regressor('nfl_night')
+m4.add_regressor('nfl_springf')
+m4.fit(df_prophet4)
+
+#predict traffic of Jucntion 4 for next 4 months
+test = pd.read_csv('test_BdBKkAj.csv')
+t = test[list(test.columns[:-1])]
+t['DateTime'] = t['DateTime'].astype('datetime64[ns]')
+t4 = t.groupby('Junction').get_group(4)
+df_t4 = dict()        
+df_t4['ds'] = t4['DateTime']
+df_t4 = pd.DataFrame(df_t4)
+df_t4
+df_t4['cap'] = 17
+df_t4['nfl_sunday'] = df_t4['ds'].apply(nfl_sunday)
+df_t4['nfl_night'] = df_t4['ds'].apply(nfl_night)
+df_t4['nfl_springf'] = df_t4['ds'].apply(nfl_springf)
+tforecast4 = m4.predict(df_t4)
+tforecast4[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail()
+m4.plot(tforecast4)
+m4.plot_components(tforecast4)
+tfcst4=dict()
+for  i in range(len(tforecast4)):
+    tfcst4['Vehicles_upper'] = tforecast4['yhat_upper']
+    tfcst4['Vehicles'] = tforecast4['yhat']
+    tfcst4['DateTime'] = tforecast4['ds']
+tdfn4 = pd.DataFrame(tfcst4)
+
+#Join prediction of Junction 4 with ID and write to a csv
+test = pd.read_csv('test_BdBKkAj.csv')
+test['DateTime'] = test['DateTime'].astype('datetime64[ns]')
+test4 = test.groupby('Junction').get_group(4)
+test4 = pd.DataFrame(test4)
+df = test4.set_index('DateTime').join(tdfn4.set_index('DateTime'))
+df.to_csv('a.csv', mode = 'a')
+
+m4.plot(tforecast4)

@@ -1,0 +1,167 @@
+from sklearn.datasets import load_files       
+from keras.utils import np_utils
+import numpy as np
+from glob import glob
+from keras.applications.resnet50 import ResNet50
+
+# define ResNet50 model
+ResNet50_model = ResNet50(weights='imagenet')
+
+### The files are encoded as such:Dog{network}Data.npz
+### TODO: Obtain bottleneck features from another pre-trained CNN.
+bottleneck_features1 = np.load('bottleneck_features/DogVGG19Data.npz')
+train_VGG19 = bottleneck_features1['train']
+valid_VGG19 = bottleneck_features1['valid']
+test_VGG19 = bottleneck_features1['test']
+
+bottleneck_features2 = np.load('bottleneck_features/DogResnet50Data.npz')
+train_Resnet50 = bottleneck_features2['train']
+valid_Resnet50 = bottleneck_features2['valid']
+test_Resnet50 = bottleneck_features2['test']
+
+bottleneck_features3 = np.load('bottleneck_features/DogInceptionV3Data.npz')
+train_InceptionV3 = bottleneck_features3['train']
+valid_InceptionV3 = bottleneck_features3['valid']
+test_InceptionV3 = bottleneck_features3['test']
+
+bottleneck_features4 = np.load('bottleneck_features/DogXceptionData.npz')
+train_Xception = bottleneck_features4['train']
+valid_Xception = bottleneck_features4['valid']
+test_Xception = bottleneck_features4['test']
+
+from keras.layers import Conv2D, MaxPooling2D, GlobalAveragePooling2D
+from keras.layers import Dropout, Flatten, Dense
+from keras.models import Sequential
+
+### TODO: Define your architecture.
+VGG19_model = Sequential()
+VGG19_model.add(GlobalAveragePooling2D(input_shape = train_VGG19.shape[1:]))
+VGG19_model.add(Dense(133,activation = "softmax"))
+VGG19_model.summary()
+
+Resnet50_model = Sequential()
+Resnet50_model.add(GlobalAveragePooling2D(input_shape = train_Resnet50.shape[1:]))
+Resnet50_model.add(Dense(133,activation = 'softmax'))
+Resnet50_model.summary()
+
+InceptionV3_model = Sequential()
+InceptionV3_model.add(GlobalAveragePooling2D(input_shape = train_InceptionV3.shape[1:]))
+InceptionV3_model.add(Dense(133,activation = 'softmax'))
+InceptionV3_model.summary()
+
+Xception_model = Sequential()
+Xception_model.add(GlobalAveragePooling2D(input_shape = train_Xception.shape[1:]))
+Xception_model.add(Dense(133,activation = 'softmax'))
+Xception_model.summary()
+
+### TODO: Compile the model.
+VGG19_model.compile(loss='categorical_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
+Resnet50_model.compile(loss='categorical_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
+InceptionV3_model.compile(loss='categorical_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
+Xception_model.compile(loss='categorical_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
+
+### TODO: Train the model.
+checkpointer3 = ModelCheckpoint(filepath='saved_models/weights.best.Resnet50.hdf5', 
+                               verbose=1, save_best_only=True)
+
+Resnet50_model.fit(train_Resnet50, train_targets, 
+          validation_data=(valid_Resnet50, valid_targets),
+          epochs=20, batch_size=20, callbacks=[checkpointer3], verbose=1)
+          
+          ### TODO: Train the model.
+checkpointer4 = ModelCheckpoint(filepath='saved_models/weights.best.InceptionV3.hdf5', 
+                               verbose=1, save_best_only=True)
+
+InceptionV3_model.fit(train_InceptionV3, train_targets, 
+          validation_data=(valid_InceptionV3, valid_targets),
+          epochs=20, batch_size=20, callbacks=[checkpointer4], verbose=1)
+          
+### TODO: Train the model.
+checkpointer4 = ModelCheckpoint(filepath='saved_models/weights.best.InceptionV3.hdf5', 
+                               verbose=1, save_best_only=True)
+
+InceptionV3_model.fit(train_InceptionV3, train_targets, 
+          validation_data=(valid_InceptionV3, valid_targets),
+          epochs=20, batch_size=20, callbacks=[checkpointer4], verbose=1)
+          
+          ### TODO: Train the model.
+checkpointer5 = ModelCheckpoint(filepath='saved_models/weights.best.Xception.hdf5', 
+                               verbose=1, save_best_only=True)
+
+Xception_model.fit(train_Xception, train_targets, 
+          validation_data=(valid_Xception, valid_targets),
+          epochs=20, batch_size=20, callbacks=[checkpointer5], verbose=1)
+          
+### TODO: Load the model weights with the best validation loss.
+VGG19_model.load_weights('saved_models/weights.best.VGG19.hdf5')
+Resnet50_model.load_weights('saved_models/weights.best.Resnet50.hdf5')
+InceptionV3_model.load_weights('saved_models/weights.best.InceptionV3.hdf5')
+Xception_model.load_weights('saved_models/weights.best.Xception.hdf5')
+
+### TODO: Calculate classification accuracy on the test dataset.
+# get index of predicted dog breed for each image in test set
+VGG19_predictions = [np.argmax(VGG19_model.predict(np.expand_dims(feature, axis=0))) for feature in test_VGG19]
+
+# report test accuracy
+test_accuracy = 100*np.sum(np.array(VGG19_predictions)==np.argmax(test_targets, axis=1))/len(VGG19_predictions)
+print('Test accuracy: %.4f%%' % test_accuracy)
+
+### TODO: Calculate classification accuracy on the test dataset.
+# get index of predicted dog breed for each image in test set
+Resnet50_predictions = [np.argmax(Resnet50_model.predict(np.expand_dims(feature, axis=0))) for feature in test_Resnet50]
+
+# report test accuracy
+test_accuracy = 100*np.sum(np.array(Resnet50_predictions)==np.argmax(test_targets, axis=1))/len(Resnet50_predictions)
+print('Test accuracy: %.4f%%' % test_accuracy)
+
+### TODO: Calculate classification accuracy on the test dataset.
+# get index of predicted dog breed for each image in test set
+InceptionV3_predictions = [np.argmax(InceptionV3_model.predict(np.expand_dims(feature, axis=0))) for feature in test_InceptionV3]
+
+# report test accuracy
+test_accuracy = 100*np.sum(np.array(InceptionV3_predictions)==np.argmax(test_targets, axis=1))/len(InceptionV3_predictions)
+print('Test accuracy: %.4f%%' % test_accuracy)
+
+### TODO: Calculate classification accuracy on the test dataset.
+# get index of predicted dog breed for each image in test set
+Xception_predictions = [np.argmax(Xception_model.predict(np.expand_dims(feature, axis=0))) for feature in test_Xception]
+
+# report test accuracy
+test_accuracy = 100*np.sum(np.array(Xception_predictions)==np.argmax(test_targets, axis=1))/len(Xception_predictions)
+print('Test accuracy: %.4f%%' % test_accuracy)
+
+### TODO: Write a function that takes a path to an image as input
+### and returns the dog breed that is predicted by the model.
+from extract_bottleneck_features import *
+
+def Xception_predict_breed(img_path):
+    # extract bottleneck features
+    bottleneck_feature = extract_Xception(path_to_tensor(img_path))
+    # obtain predicted vector
+    predicted_vector = Xception_model.predict(bottleneck_feature)
+    # return dog breed that is predicted by the model
+    return dog_names[np.argmax(predicted_vector)]
+    
+### TODO: Write your algorithm.
+### Feel free to use as many code cells as needed.
+from IPython.core.display import Image, display
+def my_algo(img_path):
+    if dog_detector(img_path):
+        display(Image(img_path,width=200,height=200))
+        print('This dog is predicted to be:')
+        return Xception_predict_breed(img_path)
+    elif face_detector2(img_path):
+        display(Image(img_path,width=200,height=200))
+        print('This human is predicted to be:')
+        return Xception_predict_breed(img_path)
+    else:
+        print('error')
+        
+        ## TODO: Execute your algorithm from Step 6 on
+## at least 6 images on your computer.
+## Feel free to use as many code cells as needed.
+
+print(my_algo('testmyalgo/dog1.jpeg'))
+print(my_algo('testmyalgo/dog2.jpeg'))
+print(my_algo('testmyalgo/dog3.jpeg'))
+print(my_algo('testmyalgo/dog4.jpeg'))
